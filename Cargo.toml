@@ -1,0 +1,14 @@
+[package]
+name = "kute-compressor"
+version = "0.1.0"
+edition = "2026"
+authors = ["danieo"]
+
+[workspace]
+members = ["."]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git"}
