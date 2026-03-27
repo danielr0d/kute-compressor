@@ -1,4 +1,4 @@
-use nih-plug::prelude::*;
+use nih_plug::prelude::*;
 use std::sync::Arc;
 
 pub struct KuteCompressor {
@@ -29,7 +29,7 @@ impl KuteCompressor {
 }
 
 impl KuteCompressor {
-    pub fn process_sammple(&mut self, input: f32) -> f32 {
+    pub fn process_sample(&mut self, input: f32) -> f32 {
         let input_abs = input.abs();
         let input_db = if input_abs < 0.000001 {
             -120.0
@@ -65,7 +65,7 @@ impl KuteCompressor {
     }
 }
 
-#[derive(Parms)]
+#[derive(Params)]
 struct CompressorParams {
     #[id = "threshold"]
     pub threshold: FloatParam,
@@ -108,8 +108,66 @@ impl Default for Kumpressor {
     fn default() -> Self {
         Self {
             params: Arc::new(CompressorParams::default()),
-            dsp: KuteCompressor,
+            dsp: KuteCompressor::new(44100.0),
         }
+    }
+}
+
+impl Plugin for Kumpressor {
+    const NAME: &'static str = "Kute Compressor";
+    const VENDOR: &'static str = "O teu pai";
+    const URL: &'static str = "https://danie.moe/";
+    const EMAIL: &'static str = "nyan@nyan.com";
+    const VERSION: &'static str = "0.1.0";
+
+    const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[
+        AudioIOLayout {
+            main_input_channels: NonZeroU32::new(2),
+            main_output_channels: NonZeroU32::new(2),
+            ..AudioIOLayout::const_default()
+        },
+    ];
+
+    const MIDI_INPUT: MidiConfig = MidiConfig::None;
+    const SAMPLE_ACCURATE_AUTOMATION: bool = true;
+    type SysExMessage = ();
+    type BackgroundTask = ();
+
+    fn params(&self) -> Arc<dyn Params> {
+        self.params.clone()
+    }
+
+    fn initialize(
+        &mut self,
+        _audio_io_layout: &AudioIOLayout,
+        buffer_config: &BufferConfig,
+        _context: &mut impl InitContext<Self>,
+        ) -> bool {
+
+        // this shit gets the sample rate of the project (DAW will tell)
+        self.dsp = KuteCompressor::new(buffer_config.sample_rate);
+        true
+    }
+
+    fn process(
+        &mut self,
+        buffer: &mut Buffer,
+        _aux: &mut AuxiliaryBuffers,
+        _context: &mut impl ProcessContext<Self>,
+    ) -> ProcessStatus {
+        self.dsp.threshold_db = self.params.threshold.smoothed.next();
+        self.dsp.ratio = self.params.ratio.smoothed.next();
+        self.dsp.attack_ms = self.params.attack.smoothed.next();
+        self.dsp.release_ms = self.params.release.smoothed.next();
+        self.dsp.makeup_gain_db = self.params.makeup_gain.smoothed.next();
+
+        for channel_samples in buffer.iter_samples() {
+            for sample in channel_samples {
+                *sample = self.dsp.process_sample(*sample);
+            }
+        }
+
+        ProcessStatus::Normal
     }
 }
 
