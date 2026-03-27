@@ -64,3 +64,21 @@ impl KuteCompressor {
         input * linear_gain
     }
 }
+
+#[derive(Parms)]
+struct CompressorParams {
+    #[id = "threshold"]
+    pub threshold: FloatParam,
+
+    #[id = "ratio"]
+    pub ratio: FloatParam,
+
+    #[id = "attack"]
+    pub attack: FloatParam,
+
+    #[id = "release"]
+    pub release: FloatParam,
+
+    #[id = "makeup"]
+    pub makeup_gain: FloatParam,
+}
