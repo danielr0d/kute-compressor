@@ -82,3 +82,19 @@ struct CompressorParams {
     #[id = "makeup"]
     pub makeup_gain: FloatParam,
 }
+
+impl Default for CompressorParams {
+    fn default() -> Self {
+        Self {
+            threshold: FloatParam::new("Threshold", -20.0, FloatRange::Linear { min: -60.0, max: 0.0 })
+                .with_unit(" dB"),
+            ratio: FloatParam::new("Ratio", 4.0, FloatRange::Linear { min: 1.0, max: 20.0 }),
+            attack: FloatParam::new("Attack", 10.0, FloatRange::Skewed { min: 0.1, max: 100.0, factor: 0.5 })
+                .with_unit(" ms"),
+            release: FloatParam::new("Release", 100.0, FloatRange::Skewed { min: 5.0, max: 2000.0, factor: 0.5 })
+                .with_unit(" ms"),
+            makeup_gain: FloatParam::new("Makeup Gain", 0.0, FloatRange::Linear { min: -20.0, max: 20.0 })
+                .with_unit(" dB"),
+        }
+    }
+}
