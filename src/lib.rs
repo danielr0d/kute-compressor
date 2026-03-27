@@ -98,3 +98,18 @@ impl Default for CompressorParams {
         }
     }
 }
+
+struct Kumpressor {
+    params: Arc<CompressorParams>,
+    dsp: KuteCompressor,
+}
+
+impl Default for Kumpressor {
+    fn default() -> Self {
+        Self {
+            params: Arc::new(CompressorParams::default()),
+            dsp: KuteCompressor,
+        }
+    }
+}
+
