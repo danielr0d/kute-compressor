@@ -58,10 +58,66 @@ impl KuteCompressor {
 
         self.current_gr_db = (coef * self.current_gr_db) + ((1.0 - coef) * gr_target_db);
 
-        let total_gain_db = self.current_gr_db * self.makeup_gain_db;
+        let total_gain_db = self.current_gr_db + self.makeup_gain_db;
         let linear_gain = 10.0_f32.powf(total_gain_db / 20.0);
 
         input * linear_gain
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Feeds a constant-amplitude signal in until the attack/release smoothing has settled,
+    /// then returns the steady-state output.
+    fn settle(comp: &mut KuteCompressor, input: f32, samples: usize) -> f32 {
+        let mut output = input;
+        for _ in 0..samples {
+            output = comp.process_sample(input);
+        }
+        output
+    }
+
+    #[test]
+    fn gain_reduction_applies_at_default_makeup_gain() {
+        // Regression test for the `current_gr_db * makeup_gain_db` bug, which made the
+        // compressor a no-op whenever makeup gain was left at its default of 0 dB.
+        let mut comp = KuteCompressor::new(44_100.0);
+        comp.threshold_db = -20.0;
+        comp.ratio = 4.0;
+        comp.attack_ms = 10.0;
+        comp.release_ms = 100.0;
+        comp.makeup_gain_db = 0.0;
+
+        // 0 dBFS input is 20 dB over threshold, so with a 4:1 ratio steady-state gain
+        // reduction should settle at -15 dB (0.75 * 20 dB), i.e. a ~0.1778 linear gain.
+        let output = settle(&mut comp, 1.0, 20_000);
+        let expected = 10.0_f32.powf(-15.0 / 20.0);
+
+        assert!(
+            (output - expected).abs() < 1e-3,
+            "expected steady-state output near {expected}, got {output}"
+        );
+    }
+
+    #[test]
+    fn makeup_gain_adds_instead_of_multiplying() {
+        let mut comp = KuteCompressor::new(44_100.0);
+        comp.threshold_db = -20.0;
+        comp.ratio = 4.0;
+        comp.attack_ms = 10.0;
+        comp.release_ms = 100.0;
+        comp.makeup_gain_db = 6.0;
+
+        // Steady-state gain reduction of -15 dB plus 6 dB of makeup gain is -9 dB overall.
+        let output = settle(&mut comp, 1.0, 20_000);
+        let expected = 10.0_f32.powf(-9.0 / 20.0);
+
+        assert!(
+            (output - expected).abs() < 1e-3,
+            "expected steady-state output near {expected}, got {output}"
+        );
     }
 }
 
@@ -170,4 +226,25 @@ impl Plugin for Kumpressor {
         ProcessStatus::Normal
     }
 }
+
+impl ClapPlugin for Kumpressor {
+    const CLAP_ID: &'static str = "moe.danie.kute-compressor";
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("A simple feedforward compressor");
+    const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
+    const CLAP_SUPPORT_URL: Option<&'static str> = None;
+    const CLAP_FEATURES: &'static [ClapFeature] = &[
+        ClapFeature::AudioEffect,
+        ClapFeature::Stereo,
+        ClapFeature::Compressor,
+    ];
+}
+
+impl Vst3Plugin for Kumpressor {
+    const VST3_CLASS_ID: [u8; 16] = *b"KuteCompressor01";
+    const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] =
+        &[Vst3SubCategory::Fx, Vst3SubCategory::Dynamics];
+}
+
+nih_export_clap!(Kumpressor);
+nih_export_vst3!(Kumpressor);
 
