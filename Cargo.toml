@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["danieo"]
 
 [workspace]
-members = ["."]
+members = [".", "xtask"]
 
 [lib]
 crate-type = ["cdylib", "lib"]
